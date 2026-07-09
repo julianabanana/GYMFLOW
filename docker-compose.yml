@@ -1,37 +1,61 @@
+# GymFlow — stack completo (db + backend + frontend)
+# Ver spec/constitution/ci-cd.md para las decisiones detrás de este archivo.
+#
+# Uso local:
+#   cp .env.example .env   # y ajustar valores
+#   docker compose up --build
+#
+# El backend espera a la db (docker-entrypoint.sh) y corre las migraciones
+# solo; el frontend espera a que el backend esté healthy antes de arrancar
+# (por si el nginx.conf lo necesitara en algún momento, no por ahora).
+
 services:
   db:
-    image: postgres:16
+    image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: ${POSTGRES_USER:-gymflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gymflow}
+      POSTGRES_DB: ${POSTGRES_DB:-gymflow}
     volumes:
       - gymflow_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gymflow}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "5432:5432"
 
   backend:
-    build: ./backend
+    build:
+      context: ./backend
     restart: unless-stopped
-    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-gymflow}:${POSTGRES_PASSWORD:-gymflow}@db:5432/${POSTGRES_DB:-gymflow}
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    healthcheck:
+      # /health lo debe exponer el backend (endpoint trivial, sin auth) —
+      # ver duda abierta en ci-cd.md, todavía no existe una spec para esto.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     ports:
       - "8000:8000"
-    volumes:
-      - ./backend:/app
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
     restart: unless-stopped
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     ports:
-      - "5173:5173"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+      - "5173:80"
 
 volumes:
   gymflow_db_data:

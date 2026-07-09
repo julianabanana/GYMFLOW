@@ -7,6 +7,7 @@ from models.user import User, RolUsuario, EstadoUsuario
 from models.membership_type import MembershipType
 from models.membership import Membership, EstadoMembresia
 from models.checkin import CheckIn, ResultadoCheckin
+from models.checkin_device_lock import CheckinDeviceLock
 from models.guest import Guest
 
 __all__ = [
@@ -18,5 +19,6 @@ __all__ = [
     "EstadoMembresia",
     "CheckIn",
     "ResultadoCheckin",
+    "CheckinDeviceLock",
     "Guest",
 ]

@@ -8,7 +8,7 @@
 
 Permite a **Empleado** y **Administrador** iniciar sesión con credenciales y obtener un **JWT propio** que autoriza el acceso al backoffice y a los endpoints de API según su **rol** (RBAC). Las sesiones expiran por inactividad y las contraseñas se guardan siempre con hash.
 
-El flujo de **Miembro/Invitado en el kiosko no requiere login** (así lo fija la misión): el check-in es público a nivel de usuario y se protege por dispositivo (RN-03), no por JWT.
+El flujo de **Miembro/Invitado en el kiosko no requiere login** (así lo fija la misión): el check-in por cédula/nombre es público a nivel de usuario y se protege por dispositivo (RN-03), no por JWT. Esto sigue siendo cierto para el kiosko. El Miembro sí puede loguearse por fuera del kiosko, en el **portal web** (`011-portal-miembro-autenticacion`), con su propio esquema de sesión (access + refresh token, distinto al de Staff/Administrador porque su propósito es otro: consulta de cuenta y habilitar check-in por QR, no acceso al backoffice). El Invitado nunca tiene login, en ningún canal.
 
 ## Por qué
 

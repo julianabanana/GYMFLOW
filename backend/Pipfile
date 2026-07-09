@@ -1,7 +1,7 @@
 [[source]]
-name = "pypi"
 url = "https://pypi.org/simple"
 verify_ssl = true
+name = "pypi"
 
 [packages]
 fastapi = "*"
@@ -10,11 +10,10 @@ sqlalchemy = "*"
 alembic = "*"
 psycopg2-binary = "*"
 pydantic = "*"
-pydantic-settings = "*"
-pyjwt = "*"
 passlib = {extras = ["bcrypt"], version = "*"}
 python-multipart = "*"
-python-dotenv = "*"
+pydantic-settings = "*"
+pyjwt = "*"
 
 [dev-packages]
 pytest = "*"
@@ -22,4 +21,4 @@ httpx = "*"
 ruff = "*"
 
 [requires]
-python_version = "3.12"
+python_version = "3.13"

@@ -4,6 +4,8 @@
 
 **Traza:** HU-03 · RF-01, RF-02, RF-03
 
+> **Nota de trazabilidad (defecto en el documento original):** el criterio de aceptación de HU-03 en `Análisis.docx` dice *"Cuando el empleado realiza la búsqueda..."*, lo cual contradice la frase de intención de la misma HU-03 (*"Como miembro, quiero identificarme por cédula, QR o nombre..."*). Es el mismo tipo de error de copy-paste que el equipo ya marcó para HU-04 en `005-cortesia-primer-dia` (ambos criterios son casi idénticos). Esta spec sigue la frase de intención (identificación por el propio socio), no el criterio Gherkin roto — consistente con lo que el equipo confirmó en conversación. Señalado para que el equipo lo corrija en `docs/` si quiere trazabilidad literal para la entrega.
+
 ## Qué hace
 
 Permite identificar/buscar a un usuario por **cédula**, **código QR** o **nombre** (coincidencias parciales), tanto en el kiosko como en el backoffice, para que un miembro pueda ingresar aunque olvide alguno de sus datos y para que el staff resuelva incidencias.
@@ -23,4 +25,4 @@ Reduce la fricción del check-in y las incidencias de recepción (ej. "el usuari
 ## Fuera de alcance
 
 - Validación de acceso y descuentos → `001`/`002`/`006`.
-- **Duda abierta (importante):** RF-02 pide un **"QR dinámico generado desde la sesión del Miembro"**, pero la misión establece que **el miembro no inicia sesión**. Es una contradicción real. Se propone para el MVP un **QR que codifica la cédula/id del miembro** (emitido por staff), y dejar el "QR dinámico por sesión" como pendiente de aclarar con la profesora. No se implementa sesión de miembro (choca con la constitución).
+- **Resuelto (antes era duda abierta):** RF-02 pedía un "QR dinámico generado desde la sesión del Miembro", lo cual chocaba con la misión original ("el miembro no inicia sesión"). Se revisó la misión: el Miembro ahora puede loguearse en un **portal web nuevo** (`011-portal-miembro-autenticacion`) sin que el kiosko en sí requiera login. El QR dinámico por sesión queda implementado en `012-checkin-qr-dinamico`, que **reemplaza** el plan de "QR estático emitido por staff" que se había propuesto aquí como parche temporal. Esta feature (`008`) sigue cubriendo la búsqueda por cédula/nombre/QR **estático** (el QR físico del carnet, si existe) como camino alterno; el QR **dinámico** del kiosko vive en `012`.

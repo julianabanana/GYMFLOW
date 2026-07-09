@@ -1,8 +1,144 @@
 """
-Servicio de checkin. Sin lógica todavía — se implementa junto con
-spec/features/001, 002, 005, 006/.
+Servicio de checkin — orquesta el motor de validación de RN-01/RN-02/RN-03/
+RN-08/RN-10 (spec/features/001-checkin-membresia-activa,
+002-acceso-denegado). Resuelve al usuario vía members.service y valida/
+descuenta la membresía vía membership.service; nunca consulta sus tablas
+directamente (regla de módulos, AGENTS.md).
 
 Regla de módulos (no negociable, AGENTS.md): este service es el ÚNICO punto de
 entrada que otros módulos pueden llamar para leer/mutar datos de checkin.
 Ningún otro módulo debe importar checkin/repository.py directamente.
 """
+import re
+
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+
+import membership.service as membership_service
+import members.service as members_service
+from checkin.repository import CheckinDeviceLockRepository, CheckinRepository
+from checkin.schemas import CheckinResultado, RazonDenegacion
+from core.config import now as _now
+from membership.schemas import MembershipSummary
+from models import CheckIn, ResultadoCheckin
+
+# spec.md de 002 (decisión provisional, no confirmada con equipo/profesora):
+# solo dígitos, 5 a 15 caracteres — permisivo con cédulas de varios países.
+_CEDULA_VALIDA = re.compile(r"^\d{5,15}$")
+
+
+class UsuarioNoEncontradoError(Exception):
+    """Cédula con formato válido pero sin usuario registrado. La cortesía de
+    primer día (005) es un flujo de Staff, no del kiosko, así que por ahora
+    esto se trata como error 404 en el router — no es una decisión de
+    negocio, es un límite explícito de alcance de 001/002 (ver "Fuera de
+    alcance" en sus spec.md). No cuenta para el bloqueo de dispositivo (RN-03):
+    solo CEDULA_NO_ENCONTRADA (formato inválido) cuenta."""
+
+
+def checkin_member(cedula: str, device_id: str, db: Session):
+    """Devuelve (CheckinResultado, mensaje, nombre, visitas_restantes, razon)."""
+    lock_repo = CheckinDeviceLockRepository(db)
+
+    if not _CEDULA_VALIDA.match(cedula):
+        lock_repo.register_failed_attempt(device_id, _now())
+        db.commit()
+        return _respuesta_denegada(
+            RazonDenegacion.cedula_no_encontrada, "ACCESO DENEGADO. Cédula inválida.", None
+        )
+
+    user = members_service.get_user_by_cedula(cedula, db)
+    if user is None:
+        raise UsuarioNoEncontradoError(cedula)
+
+    repo = CheckinRepository(db)
+    hoy = membership_service.hoy()
+
+    # Filtro 1: ya tiene un CheckIn is_active=true de hoy → éxito directo,
+    # sin reevaluar RN-01 ni descontar visita (spec.md de 001, "Filtro 1").
+    if repo.exists_successful_checkin_today(user.id, hoy):
+        lock_repo.reset_attempts(device_id)
+        db.commit()
+        resumen = membership_service.get_membership_summary(user.id, db)
+        return _respuesta_exitosa(user.nombre, resumen)
+
+    # Filtro 2: RN-01 (membresía activa + visitas_restantes > 0).
+    membresia_activa = membership_service.get_active_membership(user.id, db)
+    if membresia_activa is None:
+        razon, mensaje = _razon_rn01(user.id, db)
+        # RN-10: la denegación no toca saldos, pero sí queda registrada.
+        # No cuenta para el bloqueo (RN-03): son socios reales y conocidos,
+        # no tanteo de cédulas (spec.md de 002).
+        repo.insert(
+            CheckIn(
+                usuario_id=user.id,
+                resultado=ResultadoCheckin.denegado,
+                razon_denegacion=razon.value,
+                is_active=False,
+            )
+        )
+        db.commit()
+        return _respuesta_denegada(razon, mensaje, user.nombre)
+
+    # Transacción única (RN-10): descuenta la visita e inserta el CheckIn, o
+    # revierte ambos si algo falla. El commit/rollback lo hace este orquestador.
+    try:
+        membership_service.consume_visit(membresia_activa.id, db)
+        repo.insert(
+            CheckIn(
+                usuario_id=user.id,
+                resultado=ResultadoCheckin.exitoso,
+                is_active=True,
+            )
+        )
+        lock_repo.reset_attempts(device_id)
+        db.commit()
+    except IntegrityError:
+        # Condición de carrera: otro check-in concurrente del mismo socio ya
+        # ganó el índice único parcial (usuario_id, día) para hoy — se resuelve
+        # como Filtro 1 (éxito, sin volver a descontar), no como error.
+        db.rollback()
+        lock_repo.reset_attempts(device_id)
+        db.commit()
+        resumen = membership_service.get_membership_summary(user.id, db)
+        return _respuesta_exitosa(user.nombre, resumen)
+    except Exception:
+        db.rollback()
+        raise
+
+    resumen = membership_service.get_membership_summary(user.id, db)
+    return _respuesta_exitosa(user.nombre, resumen)
+
+
+def _razon_rn01(user_id: int, db: Session) -> tuple[RazonDenegacion, str]:
+    """Distingue MEMBRESIA_VENCIDA de SIN_VISITAS cuando RN-01 no se cumple
+    (spec.md de 002). Sin fila `activa` en absoluto se trata como vencida —
+    no hay membresía vigente que mostrar."""
+    membresia = membership_service.get_membership_for_user(user_id, db)
+    if membresia is None or membresia.fecha_vencimiento < membership_service.hoy():
+        fecha = membresia.fecha_vencimiento if membresia else None
+        mensaje = (
+            f"ACCESO DENEGADO. Tu membresía venció el {fecha}."
+            if fecha
+            else "ACCESO DENEGADO. No tienes una membresía activa."
+        )
+        return RazonDenegacion.membresia_vencida, mensaje
+    return (
+        RazonDenegacion.sin_visitas,
+        "ACCESO DENEGADO. Alcanzaste el límite de visitas de tu ciclo actual.",
+    )
+
+
+def _respuesta_exitosa(nombre: str | None, resumen: MembershipSummary | None):
+    visitas = resumen.visitas_restantes if resumen else None
+    return (
+        CheckinResultado.exitoso,
+        f"ACCESO PERMITIDO. Bienvenido/a {nombre}. Visitas restantes: {visitas}.",
+        nombre,
+        visitas,
+        None,
+    )
+
+
+def _respuesta_denegada(razon: RazonDenegacion, mensaje: str, nombre: str | None):
+    return (CheckinResultado.denegado, mensaje, nombre, None, razon)
