@@ -1,7 +1,77 @@
 """
-Router de checkin. Sin endpoints todavía — se agregan al implementar
-spec/features/001, 002, 005, 006/.
+Router de checkin (spec/features/001-checkin-membresia-activa,
+002-acceso-denegado). Validación de entrada con Pydantic
+(checkin/schemas.py), nunca a mano aquí (AGENTS.md).
 """
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from sqlalchemy.orm import Session
+
+from checkin.repository import CheckinDeviceLockRepository
+from checkin.schemas import CheckinRequest, CheckinResponse, DispositivoBloqueadoInfo
+from checkin.service import UsuarioNoEncontradoError, checkin_member
+from core.config import now as _now
+from core.database import get_db
 
 router = APIRouter(prefix="/checkin", tags=["checkin"])
+
+
+def enforce_device_not_locked(
+    request: Request,
+    db: Session = Depends(get_db),
+    x_device_id: str | None = Header(default=None),
+) -> str:
+    """RN-03 (002-acceso-denegado): id estable que manda el kiosko, con
+    fallback a IP si falta el header (duda abierta de spec.md, resuelta así)."""
+    device_id = x_device_id or (request.client.host if request.client else "desconocido")
+    lock_repo = CheckinDeviceLockRepository(db)
+    momento = _now()
+    if lock_repo.is_locked(device_id, momento):
+        bloqueado_hasta = lock_repo.bloqueado_hasta(device_id)
+        raise HTTPException(
+            status_code=423,
+            detail={
+                "mensaje": "Dispositivo bloqueado temporalmente. Intenta de nuevo más tarde.",
+                "bloqueado_hasta": bloqueado_hasta.isoformat() if bloqueado_hasta else None,
+            },
+        )
+    return device_id
+
+
+@router.post("", response_model=CheckinResponse)
+def post_checkin(
+    payload: CheckinRequest,
+    db: Session = Depends(get_db),
+    device_id: str = Depends(enforce_device_not_locked),
+) -> CheckinResponse:
+    try:
+        resultado, mensaje, nombre, visitas_restantes, razon = checkin_member(
+            payload.cedula, device_id, db
+        )
+    except UsuarioNoEncontradoError:
+        raise HTTPException(status_code=404, detail="Cédula no registrada")
+    return CheckinResponse(
+        resultado=resultado,
+        mensaje=mensaje,
+        nombre=nombre,
+        visitas_restantes=visitas_restantes,
+        razon=razon,
+    )
+
+
+@router.get("/dispositivos-bloqueados", response_model=list[DispositivoBloqueadoInfo])
+def get_dispositivos_bloqueados(db: Session = Depends(get_db)) -> list[DispositivoBloqueadoInfo]:
+    # TODO(003-autenticacion-segura): proteger con Depends de rol Staff —
+    # sin esto, hoy es la única forma de saber qué device_id desbloquear
+    # (no hay panel de staff todavía, ver spec/features/002-acceso-denegado/).
+    bloqueados = CheckinDeviceLockRepository(db).listar_bloqueados(_now())
+    return [DispositivoBloqueadoInfo.model_validate(b) for b in bloqueados]
+
+
+@router.post("/desbloquear/{device_id}")
+def post_desbloquear_dispositivo(device_id: str, db: Session = Depends(get_db)) -> dict:
+    # TODO(003-autenticacion-segura): proteger con Depends de rol Staff en
+    # cuanto exista el JWT de backoffice — hoy queda sin guard (decisión
+    # explícita, ver spec/features/002-acceso-denegado/tasks.md).
+    CheckinDeviceLockRepository(db).reset_attempts(device_id)
+    db.commit()
+    return {"mensaje": f"Dispositivo {device_id} desbloqueado."}

@@ -1,3 +1,20 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+/* Tokens extraídos por muestreo de píxeles de los mockups —
+   ver spec/constitution/design-system.md para el detalle y las dudas
+   abiertas (rojo/error y tipografía no tienen dato de origen).
+   Tailwind v4 genera las utilidades automáticamente a partir de estas
+   variables (ej. --color-member-navy → bg-member-navy, text-member-navy). */
+@theme {
+  --color-member-navy: #1c294c;
+  --color-member-navy-text: #3d4a68;
+  --color-member-success: #24c19f;
+  --color-member-success-dark: #00b78f;
+  --color-member-warning: #d5541c;
+  --color-member-yellow: #e6e92b;
+  --color-member-purple: #cd80e8;
+  --color-member-bg: #f5f6fb;
+  --color-member-muted: #5a5570;
+
+  --radius-card: 1rem;
+}

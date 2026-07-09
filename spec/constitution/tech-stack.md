@@ -4,15 +4,18 @@
 
 ## Tecnologías
 
-- **Lenguaje:** Python 3.12+ (backend), TypeScript (frontend)
-- **Framework / runtime backend:** FastAPI
-- **Framework frontend:** React 18 + Vite, Tailwind CSS
-- **Consumo de API en frontend:** React Query + Axios
-- **Base de datos:** PostgreSQL
-- **ORM / migraciones:** SQLAlchemy + Alembic
-- **Auth:** JWT propio (sin OAuth2 Authorization Server), solo para roles Staff/Administrador
-- **Tests:** pytest (backend) — a definir framework de tests frontend con el equipo
-- **Despliegue:** Docker (contenedorizado, requisito RNF de despliegue)
+> Versiones confirmadas (julio 2026), no supuestas — `pipenv`/`npm` resolvieron estas versiones reales contra PyPI/npm al armar el scaffold (ver `ci-cd.md`). Se fija versión exacta donde ya se generó lock file real; donde no, queda como "última estable" a resolver cuando se instale.
+
+- **Lenguaje backend:** Python **3.13** (`Pipfile` lo declara así). El lock file ya se regeneró en una máquina con Python 3.13 real, así que el Dockerfile usa `pipenv install --deploy` (ver `ci-cd.md`).
+- **Lenguaje frontend:** TypeScript, Node.js **20.19+ / 22.12+** (requisito de Vite 8)
+- **Framework / runtime backend:** FastAPI **0.139.0**
+- **Framework frontend:** React **19.2.7** + Vite **8.1.x**, Tailwind CSS **4.3.2**
+- **Consumo de API en frontend:** React Query (`@tanstack/react-query`) + Axios
+- **Base de datos:** PostgreSQL 16
+- **ORM / migraciones:** SQLAlchemy **2.0.51** + Alembic **1.18.5**
+- **Auth:** JWT propio (sin OAuth2 Authorization Server). Dos usos: (1) Staff/Administrador → backoffice, sesión corta (30 min inactividad, ver `003-autenticacion-segura`); (2) Miembro → portal web, sesión larga con **access token + refresh token** (ver `011-portal-miembro-autenticacion`). El kiosko físico sigue sin requerir JWT de usuario para el check-in por cédula/nombre.
+- **Tests:** pytest + httpx (backend) — framework de tests frontend a definir con el equipo
+- **Despliegue:** Docker (contenedorizado, requisito RNF de despliegue). Ver `ci-cd.md` para el detalle de servicios, `Dockerfile`s y el pipeline de CI.
 
 ## Archivos / módulos clave (Monolito Modular)
 
@@ -31,14 +34,14 @@
 - `alembic revision --autogenerate -m "<mensaje>"` / `alembic upgrade head` — migraciones.
 - `pytest` — corre tests de backend.
 - `npm run dev` — arranca el frontend (Vite).
-- `docker compose up` — levanta el stack completo (a definir servicios exactos con el equipo DevOps).
+- `docker compose up --build` — levanta el stack completo (db + backend + frontend); ver `ci-cd.md` para el detalle de los servicios.
 
 ## Modelo de datos / dominio
 
 - `User` — cédula, nombre, email, rol (Invitado/Miembro/Empleado/Administrador), estado (Activo/Inactivo). Al eliminar un usuario se borra su info personal pero se preservan sus `CheckIn` históricos (RN-07).
-- `Membership` — vinculada a `User` (miembro_id), tipo, `visitas_restantes`, `cupo_invitados_restantes`, `fecha_inicio`, `fecha_vencimiento`, estado (Activa/Vencida).
+- `Membership` — vinculada a `User` (miembro_id), tipo, `visitas_restantes`, `cupo_invitados_restantes`, `fecha_inicio`, `fecha_vencimiento`, estado (Activa/Vencida). **Un socio puede tener varias filas `Membership` a lo largo del tiempo** — cada renovación (`004-gestion-usuarios`) crea una fila nueva en vez de editar la anterior, para preservar qué plan/precio tenía en cada ciclo pasado (RN-06, RN-07). En un momento dado, normalmente hay a lo sumo una `Membership` con `estado = Activa` por socio.
 - `MembershipType` — plantilla configurable: nombre, precio_base, visitas_totales, cupo_invitados, duracion_dias, activo. **No se puede eliminar/desactivar si tiene membresías activas vinculadas** (RN-05). Cambios en sus parámetros no alteran contratos vigentes, solo aplican al siguiente ciclo (RN-06).
-- `CheckIn` — usuario_id, fecha_hora, resultado (Exitoso/Denegado), razon_denegacion, titular_id (solo si es check-in de invitado). Registro inmutable.
+- `CheckIn` — usuario_id, fecha_hora, resultado (Exitoso/Denegado), razon_denegacion, titular_id (solo si es check-in de invitado), **`isActive` (bool, campo nuevo — ver `001-checkin-membresia-activa`)**: `true` marca el `CheckIn` que representa el acceso ya concedido para el día calendario de `fecha_hora`; un reingreso exitoso el mismo día no crea un nuevo `isActive=true` ni descuenta visita, siempre que la consulta filtre explícitamente por fecha (un `isActive=true` de un día anterior no cuenta). Índice único parcial recomendado: `UNIQUE(usuario_id, DATE(fecha_hora)) WHERE isActive = true`. Registro inmutable.
 - `Guest` (Invitado) — cédula, nombre, titular_id (el miembro que lo invita).
 
 ## Convenciones
@@ -54,6 +57,7 @@
 - Kiosko de check-in: botones táctiles ≥48x48px, alto contraste, legible a 1 metro de distancia (RNF de usabilidad).
 - Backoffice/admin: puede ser más denso en información, prioriza tablas y filtros sobre botones grandes.
 - Tailwind CSS como sistema de utilidades; sin librería de componentes definida aún (a decidir con el equipo Frontend).
+- **Portal del socio (web):** sigue el sistema de diseño extraído de los mockups en `docs/` — ver `design-system.md` para la paleta completa (tokens Tailwind listos para usar). Resumen: navy `#1c294c` como color primario/sidebar, verde-teal `#24c19f` como acento de éxito, fondo de página gris muy claro `#f5f6fb`, cards blancas con esquinas redondeadas y sombra suave. **No inventar colores nuevos** fuera de esta paleta sin confirmarlo con el equipo — si falta un color para un caso (ej. error/rojo, que no aparece en los mockups provistos), queda como duda abierta en la spec correspondiente.
 
 ## Límites duros
 

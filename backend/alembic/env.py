@@ -1,8 +1,6 @@
 """
 Configuración de Alembic. La URL de conexión y los modelos vienen de
 core/config.py y models/ (no se hardcodea nada aquí).
-
-NOTA: verificar con Context7 la API vigente de Alembic antes de mergear.
 """
 import os
 import sys

@@ -7,7 +7,7 @@ Reutiliza el flujo de validación de `001` en el módulo **`checkin`**: cuando `
 ## Implementación
 
 1. `checkin/service.py :: checkin_member(...)`: extender el resultado de validación para devolver `Denegado` + `razon_denegacion` en vez de lanzar excepción genérica.
-2. `checkin/schemas.py`: enum `RazonDenegacion` (`MEMBRESIA_VENCIDA`, `SIN_VISITAS`, `YA_INGRESO_HOY`, `DISPOSITIVO_BLOQUEADO`).
+2. `checkin/schemas.py`: enum `RazonDenegacion` (`MEMBRESIA_VENCIDA`, `SIN_VISITAS`, `CEDULA_NO_ENCONTRADA`, `DISPOSITIVO_BLOQUEADO`). **`YA_INGRESO_HOY` no existe** — un reingreso el mismo día es Exitoso (ver `001`), no una razón de denegación.
 3. `models/`: tabla `CheckinDeviceLock` (propia de `checkin`): `device_id`, `intentos_fallidos`, `ventana_inicio`, `bloqueado_hasta`.
 4. `checkin/repository.py`: `register_failed_attempt(device_id, now)`, `reset_attempts(device_id)`, `is_locked(device_id, now)`.
 5. `checkin/router.py`: dependencia `enforce_device_not_locked` (lee `X-Device-Id`, fallback IP) aplicada a `POST /checkin` (y a `006`).

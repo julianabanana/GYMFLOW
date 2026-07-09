@@ -24,10 +24,10 @@ _La constitución puede ser un único archivo si el proyecto es pequeño; cada f
 ## Flujo para una feature nueva
 
 1. Crear `features/NNN-nombre-feature/` con el siguiente número libre (`001`, `002`, …).
-2. Escribir `spec.md`: qué hace, por qué y criterios de aceptación medibles.
-3. Escribir `plan.md`: enfoque técnico y decisiones, respetando `constitution/tech-stack.md`.
+2. Escribir `spec.md`: qué hace, por qué y criterios de aceptación medibles. Si algo queda sin resolver, se anota como sección explícita (p. ej. "Duda abierta"), no se decide en el momento.
+3. Escribir `plan.md`: enfoque técnico y decisiones, respetando `constitution/tech-stack.md`. **No se pasa al siguiente paso si `spec.md` todavía tiene "Duda abierta" sin resolver que afecte lo que se va a planear** — se resuelve con el equipo primero.
 4. Desglosar en `tasks.md` y marcar el progreso.
-5. Implementar y validar (build/tests/lint o lo que defina la constitución).
+5. Implementar y validar (build/tests/lint o lo que defina la constitución). Ver la regla de ambigüedad del agente en `AGENTS.md`: nada que no esté ya decidido en `spec.md`/`plan.md` se improvisa durante la implementación.
 6. Actualizar `constitution/roadmap.md` (mover la feature a "Hecho").
 
 > La constitución manda: si una feature choca con `mission.md` o `tech-stack.md`, se replantea la feature, no la constitución.
