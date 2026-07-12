@@ -5,6 +5,7 @@ spec/features/001, 004, 007, 009.
 """
 from datetime import date
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from models import Membership, MembershipType, EstadoMembresia
@@ -52,6 +53,23 @@ class MembershipRepository:
             .all()
         )
 
+    def list_latest_by_user_ids(self, user_ids: list[int]) -> dict[int, Membership]:
+        """010: la Membership más reciente de cada usuario, en una sola query
+        (evita N+1 al enriquecer el reporte con el tipo de plan). Mismo criterio
+        de "última" que `get_latest_by_user` (fecha_inicio desc, id desc)."""
+        if not user_ids:
+            return {}
+        filas = (
+            self.db.query(Membership)
+            .filter(Membership.miembro_id.in_(user_ids))
+            .order_by(Membership.fecha_inicio.desc(), Membership.id.desc())
+            .all()
+        )
+        latest: dict[int, Membership] = {}
+        for fila in filas:
+            latest.setdefault(fila.miembro_id, fila)
+        return latest
+
     def create(self, membership: Membership) -> Membership:
         self.db.add(membership)
         self.db.flush()
@@ -82,4 +100,51 @@ class MembershipTypeRepository:
             .filter(MembershipType.activo.is_(True))
             .order_by(MembershipType.nombre)
             .all()
+        )
+
+    def list_all(self) -> list[MembershipType]:
+        """Catálogo completo (activos e inactivos) para el CRUD del
+        Administrador (009). El listado de empleado usa `list_active`."""
+        return self.db.query(MembershipType).order_by(MembershipType.nombre).all()
+
+    def get_names_by_ids(self, tipo_ids: list[int]) -> dict[int, str]:
+        """010: nombres de tipos en lote para enriquecer el reporte."""
+        if not tipo_ids:
+            return {}
+        filas = (
+            self.db.query(MembershipType.id, MembershipType.nombre)
+            .filter(MembershipType.id.in_(tipo_ids))
+            .all()
+        )
+        return {tipo_id: nombre for tipo_id, nombre in filas}
+
+    def create(self, tipo: MembershipType) -> MembershipType:
+        self.db.add(tipo)
+        self.db.flush()
+        return tipo
+
+    def delete(self, tipo: MembershipType) -> None:
+        self.db.delete(tipo)
+        self.db.flush()
+
+    def count_active_memberships_by_type(self, tipo_id: int) -> int:
+        """RN-05: cuántas `Membership` en estado `activa` referencian este tipo.
+        Consulta intramódulo (`membership` posee ambas tablas)."""
+        return (
+            self.db.query(func.count(Membership.id))
+            .filter(
+                Membership.tipo_id == tipo_id,
+                Membership.estado == EstadoMembresia.activa,
+            )
+            .scalar()
+        )
+
+    def count_any_memberships_by_type(self, tipo_id: int) -> int:
+        """009: cuántas `Membership` referencian este tipo, sin importar estado
+        (activa o histórica). Un tipo con historial no se borra físicamente,
+        solo se desactiva (preserva la trazabilidad de precios/planes)."""
+        return (
+            self.db.query(func.count(Membership.id))
+            .filter(Membership.tipo_id == tipo_id)
+            .scalar()
         )

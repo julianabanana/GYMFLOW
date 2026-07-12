@@ -51,9 +51,48 @@ export interface MembershipType {
   duracion_dias: number;
 }
 
+export interface MembershipTypeAdmin extends MembershipType {
+  activo: boolean;
+}
+
+export interface MembershipTypeCreate {
+  nombre: string;
+  precio_base: string;
+  visitas_totales: number;
+  cupo_invitados: number;
+  duracion_dias: number;
+  activo?: boolean;
+}
+
+export type MembershipTypeUpdate = Partial<MembershipTypeCreate>;
+
 export async function listMembershipTypes(): Promise<MembershipType[]> {
   const { data } = await apiClient.get<MembershipType[]>('/membresias/tipos');
   return data;
+}
+
+export async function listMembershipTypesAdmin(): Promise<MembershipTypeAdmin[]> {
+  const { data } = await apiClient.get<MembershipTypeAdmin[]>('/membresias/tipos/admin');
+  return data;
+}
+
+export async function createMembershipType(
+  payload: MembershipTypeCreate,
+): Promise<MembershipTypeAdmin> {
+  const { data } = await apiClient.post<MembershipTypeAdmin>('/membresias/tipos', payload);
+  return data;
+}
+
+export async function updateMembershipType(
+  tipoId: number,
+  payload: MembershipTypeUpdate,
+): Promise<MembershipTypeAdmin> {
+  const { data } = await apiClient.put<MembershipTypeAdmin>(`/membresias/tipos/${tipoId}`, payload);
+  return data;
+}
+
+export async function deleteMembershipType(tipoId: number): Promise<void> {
+  await apiClient.delete(`/membresias/tipos/${tipoId}`);
 }
 
 export async function listUsers(): Promise<User[]> {

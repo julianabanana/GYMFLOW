@@ -10,6 +10,7 @@ entrada que otros módulos pueden llamar para leer/mutar datos de checkin.
 Ningún otro módulo debe importar checkin/repository.py directamente.
 """
 import re
+from datetime import date
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -108,6 +109,15 @@ def checkin_member(cedula: str, device_id: str, db: Session):
 
     resumen = membership_service.get_membership_summary(user.id, db)
     return _respuesta_exitosa(user.nombre, resumen)
+
+
+def get_attendance(fecha_inicio: date, fecha_fin: date, db: Session) -> list[CheckIn]:
+    """010 (RF-12): asistencias (CheckIn `is_active=true`) en el rango dado,
+    ambos extremos inclusive. Punto de entrada del módulo dueño de `checkins`
+    para que `reports` construya el reporte sin cruzar esta tabla directamente
+    (regla de módulos, AGENTS.md). Solo lectura: no toca la fuente inmutable
+    (RF-05)."""
+    return CheckinRepository(db).list_attendances_in_range(fecha_inicio, fecha_fin)
 
 
 def _razon_rn01(user_id: int, db: Session) -> tuple[RazonDenegacion, str]:

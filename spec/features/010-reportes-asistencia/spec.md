@@ -1,6 +1,6 @@
 # 010 · Reportes de asistencia
 
-**Estado:** propuesta
+**Estado:** implementada
 
 **Traza:** HU-09 · RF-12, RF-13 · RF-05 (fuente inmutable), RF-09 · depende de `003-autenticacion-segura`
 
@@ -14,12 +14,12 @@ Convierte el histórico inmutable de `CheckIn` en información para decisiones d
 
 ## Criterios de aceptación
 
-- [ ] Un Administrador filtra por Fecha Inicio–Fecha Fin y obtiene una **tabla consolidada** de asistencias (fecha/hora, usuario, resultado, tipo de membresía, titular si es invitado) (RF-12).
-- [ ] **La unidad de conteo es "día de asistencia", no "evento de entrada".** Con el modelo `isActive` de `001`, un socio puede tener varios `CheckIn` el mismo día (solo el primero descuenta visita). El reporte cuenta **un `CheckIn` con `isActive = true` por día por usuario** como una asistencia — los reingresos del mismo día (`isActive = false`) **no** suman como asistencias adicionales en el conteo principal, para no inflar métricas como "visitas por socio en el mes".
-- [ ] El reporte filtrado se puede **exportar a `.XLSX`** y a **`.CSV`** con los mismos datos mostrados (RF-13).
-- [ ] Los datos provienen de `CheckIn` (registro **inmutable**, RF-05) y **no** se alteran al reportar.
-- [ ] Solo rol **Administrador** puede acceder (RBAC, RF-09).
-- [ ] Un rango sin registros devuelve un reporte vacío coherente (no error).
+- [x] Un Administrador filtra por Fecha Inicio–Fecha Fin y obtiene una **tabla consolidada** de asistencias (fecha/hora, usuario, resultado, tipo de membresía, titular si es invitado) (RF-12).
+- [x] **La unidad de conteo es "día de asistencia", no "evento de entrada".** Con el modelo `isActive` de `001`, un socio puede tener varios `CheckIn` el mismo día (solo el primero descuenta visita). El reporte cuenta **un `CheckIn` con `isActive = true` por día por usuario** como una asistencia — los reingresos del mismo día (`isActive = false`) **no** suman como asistencias adicionales en el conteo principal, para no inflar métricas como "visitas por socio en el mes".
+- [x] El reporte filtrado se puede **exportar a `.XLSX`** y a **`.CSV`** con los mismos datos mostrados (RF-13).
+- [x] Los datos provienen de `CheckIn` (registro **inmutable**, RF-05) y **no** se alteran al reportar.
+- [x] Solo rol **Administrador** puede acceder (RBAC, RF-09).
+- [x] Un rango sin registros devuelve un reporte vacío coherente (no error).
 
 ## Fuera de alcance
 

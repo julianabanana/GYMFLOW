@@ -1,6 +1,6 @@
 # 011 · Portal del socio y autenticación de Miembro
 
-**Estado:** propuesta
+**Estado:** implementada
 
 **Traza:** Origen en **`docs/Diseño Preliminar.docx`** (mockups de Dashboard, Workouts, Classes, Achievements, Account) — el portal personalizado del socio (saludo por nombre, membership status, stats) ya estaba en el diseño visual original del equipo, aunque nunca se redactó como Historia de Usuario formal en la Propuesta/Análisis. **No confundir con "sin origen":** sí tiene origen en `docs/`, solo le falta la HU numerada correspondiente (ver nota abajo). Referencia parcial a **RF-04** (resumen de membresía, ya cubierto por `007`) y prepara el terreno para **RF-02** (QR dinámico, sí numerado, resuelto en `012`).
 

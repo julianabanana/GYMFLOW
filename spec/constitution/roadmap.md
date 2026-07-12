@@ -7,12 +7,17 @@
 - **001 · Check-in con membresía activa** — HU-01. Motor de validación (Filtro 1 `isActive` de hoy, Filtro 2 RN-01) en una transacción única (RN-10), con `SELECT ... FOR UPDATE` + índice único parcial para concurrencia (RN-08/RN-02), `GET /health`, y pantalla de kiosko (teclado numérico + semáforo). 6/6 tests en verde (incluye 10 check-ins concurrentes) y verificado end-to-end en navegador real. Ver `features/001-checkin-membresia-activa/`.
 - **002 · Acceso denegado** — HU-02. Semáforo rojo con motivo exacto (`MEMBRESIA_VENCIDA`/`SIN_VISITAS`/`CEDULA_NO_ENCONTRADA`) persistido en `CheckIn`, y bloqueo de dispositivo 20 min tras 3 fallos por cédula inválida en ≤5 min (RN-03, contador en tabla `CheckinDeviceLock` para ser correcto con múltiples workers). Identidad de dispositivo resuelta como `X-Device-Id` + fallback IP. Endpoint de desbloqueo manual implementado sin guard de rol (pendiente de `003`). 11/11 tests en verde y verificado end-to-end en Docker + navegador real. Ver `features/002-acceso-denegado/`.
 - **003 · Autenticación segura** — HU-10. Login de Empleado/Administrador con JWT (expiración deslizante de 30 min, RN-11, entregada vía header `X-New-Token`) y RBAC. Ampliada durante la implementación con un sistema de **permisos por usuario individual** (tablas `permisos`/`usuario_permisos`, dueño `auth`) además del rol: un empleado puede tener permisos que otro empleado del mismo rol no tiene (ej. `checkin.desbloquear_dispositivo`); `administrador` los tiene todos implícitamente. Otorgar permisos a una persona específica queda para `004` (es CRUD). Cierra los 2 endpoints `TODO(003)` de `checkin` con `require_permission`. 29/29 tests en verde (incluye los primeros tests HTTP/`TestClient` del repo). Ver `features/003-autenticacion-segura/`.
+- **004 · Gestión de usuarios y membresías** — HU-07. CRUD de usuarios (con anonimización RN-07), primera asignación y renovación de membresía (snapshot de saldos, cálculo de `fecha_inicio` en renovación anticipada vs. vencida), y otorgar/quitar permisos individuales. Endpoints CRUD bajo `/usuarios` + sub-recursos de membresías; renovar gateado con `membership.renovar`. Frontend backoffice con sidebar (`staffMenu.ts`). Verificado con tests + `curl` end-to-end y confirmación visual en navegador (Track 1). Ver `features/004-gestion-usuarios/`.
+- **007 · Resumen de membresía** — HU-06. `GET /membresias/me/resumen` (solo lectura, `require_member`) con estado activa/vencida/sin_plan, visitas y `dias_restantes` calculado. Alimenta la tarjeta del Dashboard del portal con aviso de vencimiento (≤10 días). Verificado con tests + confirmación visual (Track 1). Ver `features/007-resumen-membresia/`.
+- **011 · Portal del socio y autenticación** — Login del Miembro con correo/contraseña (cuenta creada por staff en `004`, activada por el socio), sesión larga con refresh token httpOnly (rotación + ventana deslizante), y Dashboard protegido que reutiliza el resumen de `007`. `POST /auth/portal/{login,refresh,activar,logout}` + `require_member`. Verificado con tests + confirmación visual (Track 1). Ver `features/011-portal-miembro-autenticacion/`.
+- **009 · Configuración de tipos de membresía** — HU-08. CRUD del catálogo `MembershipType` para el Administrador (RF-09) bajo `/membresias/tipos` (`GET /tipos/admin` incluye inactivos; `POST/PUT/DELETE`), manteniendo el `GET /membresias/tipos` de empleado (solo activos). RN-05: desactivar bloqueado si hay ≥1 `Membership` activa; eliminar físicamente bloqueado si existe cualquier `Membership` (activa o histórica) — solo desactivable. RN-06 por snapshot: editar el tipo no altera los saldos de contratos vigentes. Frontend backoffice (`MembershipTypesPage.tsx`, `adminOnly`). 20 tests nuevos, suite 137/137. Ver `features/009-configuracion-tipos-membresia/`.
+- **010 · Reportes de asistencia** — HU-09. Reporte histórico de asistencias filtrable por rango de fechas (RF-12) con export a XLSX (openpyxl) y CSV (RF-13), solo Administrador (RF-09). La unidad de conteo es "día de asistencia": solo cuenta `CheckIn` con `is_active=true` (un reingreso del mismo día no infla la métrica). **Discrepancia de constitución resuelta:** `reports` NO usa repository sobre `CheckIn` (chocaba con el límite duro de no cruzar tablas ajenas); en su lugar orquesta vía `checkin.service.get_attendance` + enriquecimiento en lote con `members.service`/`membership.service` (`tech-stack.md` actualizado). Migración de índice en `checkins.fecha_hora`. Frontend backoffice (`AttendanceReportPage.tsx`, `adminOnly`). 11 tests nuevos, suite 148/148. Ver `features/010-reportes-asistencia/`.
 
 ## Sprint 1 (base del sistema — prerrequisito real de todo lo demás)
 
 > **Va primero, no es un cambio de opinión sobre qué es "el core".** `011` (login del socio) necesita que exista un socio real en la base, y hoy la única forma de crear uno es que el Staff lo dé de alta desde `004`, que a su vez necesita que el Staff se loguee (`003`, ya hecho). Sin esto, `007`/`011`/`012`/`013` no tienen con qué probarse de verdad (un seed manual por SQL serviría para desarrollo aislado, pero no para el flujo completo que va a revisar la profesora: staff crea al socio → socio se loguea → escanea QR).
 
-- **004 · Gestión de usuarios y membresías** — HU-07. CRUD de usuarios, **primera asignación de membresía y renovación** (fusionado con lo que iba a ser "013 original" — ver `004`, sin HU de origen para la parte de renovación, hueco identificado en revisión de dominio: cierra lo que dejaba RN-06 sin forma de dispararse). Incluye también otorgar/editar permisos individuales de un usuario (nuevo alcance agregado durante `003`, ver `features/003-autenticacion-segura/spec.md`).
+- _Completado — ver **004** en la sección "Hecho"._
 
 ## Core del producto (justo después de Sprint 1)
 
@@ -26,8 +31,8 @@
 
 > **Orden de implementación 011 → 007 (equipo, 2026-07-11):** el resumen de `007` se consulta dentro del portal autenticado del Miembro, no por un endpoint público del kiosko (decisión registrada en `007/spec.md`). Por eso `011` (auth del Miembro) se implementa primero y `007` se monta sobre esa sesión — se entregan juntas. No se renumeran las features.
 
-- **007 · Resumen de membresía** — HU-06. Detalle de tipo, vencimiento y visitas restantes. Es el dato que alimenta el Dashboard del portal (`011`).
-- **011 · Portal del socio y autenticación** — Login del Miembro con correo/contraseña (cuenta creada por staff en `004`, activada por el socio), sesión larga con refresh token, y pantalla de resumen (reutiliza el endpoint de `007`). Prerrequisito de `012` y `013`.
+- _Completado — ver **007** en la sección "Hecho"._
+- _Completado — ver **011** en la sección "Hecho"._
 - **012 · Check-in por QR dinámico (HU-03 — flujo esencial del producto)** — El kiosko muestra un QR que rota, el socio lo escanea desde el portal web (botón de cámara), el backend valida su sesión + el QR y notifica al kiosko por WebSocket. Reutiliza el motor de reglas de `001`. Depende de `011` y reemplaza el workaround de "QR estático" que quedó anotado como pendiente en `008`.
 - **013 · Logros por racha de asistencia** — Sin HU de origen (decisión del equipo): pantalla de Achievements del mockup, con datos reales calculados de `CheckIn.isActive` (racha actual, racha más larga, insignias por umbral). Depende de `011` (mismo portal).
 
@@ -39,8 +44,8 @@
 
 ## Sprint 3 (Media/Baja — administración y reportes)
 
-- **009 · Configuración de tipos de membresía** — HU-08. CRUD de `MembershipType` respetando RN-05/RN-06.
-- **010 · Reportes de asistencia** — HU-09. Reporte histórico con filtro por rango de fechas y export a XLSX/CSV.
+- _Completado — ver **009** en la sección "Hecho"._
+- _Completado — ver **010** en la sección "Hecho"._
 
 ## Semana de documentación
 

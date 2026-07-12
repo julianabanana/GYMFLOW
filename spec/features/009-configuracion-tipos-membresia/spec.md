@@ -1,6 +1,6 @@
 # 009 · Configuración de tipos de membresía
 
-**Estado:** propuesta
+**Estado:** implementada
 
 **Traza:** HU-08 · RN-05, RN-06 · RF-11, RF-09 · depende de `003-autenticacion-segura`
 

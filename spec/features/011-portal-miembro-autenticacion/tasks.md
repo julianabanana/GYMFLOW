@@ -30,5 +30,5 @@
 
 - [x] Validar contra los criterios de aceptación de `spec.md` uno por uno.
 - [x] Flujo end-to-end verificado con `curl` a través del proxy nginx: staff crea socio (004) → activa cuenta → login → resumen real → rotación de refresh → reuso viejo 401.
-- [ ] **Pendiente de confirmación del usuario:** verificación visual en navegador (login, activación, dashboard).
-- [ ] Mover la feature a "Hecho" en `../../constitution/roadmap.md` (tras la confirmación visual).
+- [x] **Confirmado por el usuario:** verificación visual en navegador (login, activación, dashboard) (Track 1, 2026-07-12).
+- [x] Mover la feature a "Hecho" en `../../constitution/roadmap.md`.

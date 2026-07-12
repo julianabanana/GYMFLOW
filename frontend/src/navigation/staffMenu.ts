@@ -23,6 +23,20 @@ export const STAFF_MENU_ITEMS: StaffMenuItem[] = [
     permission: 'members.gestionar_usuarios',
   },
   {
+    label: 'Tipos de membresía',
+    description: 'Crear, editar, activar/desactivar y eliminar planes de membresía.',
+    path: '/staff/tipos-membresia',
+    icon: '🏷️',
+    adminOnly: true,
+  },
+  {
+    label: 'Reportes de asistencia',
+    description: 'Consultar asistencias por rango de fechas y exportar a XLSX/CSV.',
+    path: '/staff/reportes',
+    icon: '📊',
+    adminOnly: true,
+  },
+  {
     label: 'Permisos de usuario',
     description: 'Otorgar o quitar permisos individuales a un empleado.',
     path: '/staff/permisos',

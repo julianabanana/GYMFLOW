@@ -24,7 +24,7 @@
 - `members/` — router, service, repository, schemas. Dueño de la tabla `User`.
 - `checkin/` — router, service, repository, schemas. Dueño de la tabla `CheckIn`. Orquesta la validación de RN-01 a RN-04.
 - `membership/` — router, service, repository, schemas. Dueño de `Membership` y `MembershipType`.
-- `reports/` — router, service, repository, schemas. Lectura agregada sobre `CheckIn` para reportes.
+- `reports/` — router + service + schemas. **No tiene repository con queries propio** (resuelto en `010-reportes-asistencia`): no posee tablas, así que orquesta pidiendo las asistencias a `checkin.service` y enriqueciéndolas con `members.service`/`membership.service`, en lugar de consultar `CheckIn` directamente. Esto honra la regla de módulos (el "lectura agregada sobre `CheckIn`" del diseño original chocaba con el límite duro de no cruzar tablas ajenas). Usa **openpyxl** para exportar a XLSX y el módulo estándar `csv` para CSV (RF-13).
 - `models/` — modelos SQLAlchemy centralizados (`User`, `Membership`, `MembershipType`, `CheckIn`, `Guest`).
 - `main.py` — registra todos los routers, único punto de integración entre módulos.
 

@@ -23,6 +23,11 @@ class MembersRepository:
     def list_all(self) -> list[User]:
         return self.db.query(User).order_by(User.id).all()
 
+    def list_by_ids(self, user_ids: list[int]) -> list[User]:
+        if not user_ids:
+            return []
+        return self.db.query(User).filter(User.id.in_(user_ids)).all()
+
     def create(self, user: User) -> User:
         self.db.add(user)
         self.db.flush()

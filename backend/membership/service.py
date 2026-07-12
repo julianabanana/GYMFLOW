@@ -30,6 +30,16 @@ class MembershipNoExisteError(Exception):
     usarse asignar en su lugar (004)."""
 
 
+class MembershipTypeConMembresiaActivaError(Exception):
+    """RN-05: no se puede desactivar un tipo con ≥1 `Membership` activa
+    vinculada (009)."""
+
+
+class MembershipTypeConHistorialError(Exception):
+    """009: no se puede eliminar físicamente un tipo que tiene cualquier
+    `Membership` vinculada (activa o histórica) — solo desactivarlo."""
+
+
 def hoy() -> date:
     return _now().date()
 
@@ -62,6 +72,94 @@ def list_membership_history(user_id: int, db: Session) -> list[Membership]:
 def list_active_types(db: Session) -> list[MembershipType]:
     """Tipos disponibles para elegir al asignar/renovar (004)."""
     return MembershipTypeRepository(db).list_active()
+
+
+def list_all_types(db: Session) -> list[MembershipType]:
+    """Catálogo completo (activos e inactivos) para el CRUD del Administrador
+    (009)."""
+    return MembershipTypeRepository(db).list_all()
+
+
+def get_type(tipo_id: int, db: Session) -> MembershipType:
+    """009: un tipo por id o `MembershipTypeNoEncontradoError`."""
+    tipo = MembershipTypeRepository(db).get_by_id(tipo_id)
+    if tipo is None:
+        raise MembershipTypeNoEncontradoError()
+    return tipo
+
+
+def create_type(
+    nombre: str,
+    precio_base: Decimal,
+    visitas_totales: int,
+    cupo_invitados: int,
+    duracion_dias: int,
+    activo: bool,
+    db: Session,
+) -> MembershipType:
+    """009 (RF-11): crea una plantilla de plan. No comita — el router cierra
+    la transacción."""
+    tipo = MembershipType(
+        nombre=nombre,
+        precio_base=precio_base,
+        visitas_totales=visitas_totales,
+        cupo_invitados=cupo_invitados,
+        duracion_dias=duracion_dias,
+        activo=activo,
+    )
+    return MembershipTypeRepository(db).create(tipo)
+
+
+def update_type(tipo_id: int, db: Session, **campos) -> MembershipType:
+    """009: edita los parámetros de un tipo. RN-06: NO toca las `Membership`
+    ya creadas (sus saldos/fechas son snapshot). RN-05: desactivar
+    (`activo=False`) se rechaza si el tipo tiene ≥1 `Membership` activa."""
+    repo = MembershipTypeRepository(db)
+    tipo = repo.get_by_id(tipo_id)
+    if tipo is None:
+        raise MembershipTypeNoEncontradoError()
+
+    if (
+        campos.get("activo") is False
+        and tipo.activo
+        and repo.count_active_memberships_by_type(tipo_id) > 0
+    ):
+        raise MembershipTypeConMembresiaActivaError()
+
+    for campo, valor in campos.items():
+        setattr(tipo, campo, valor)
+    db.flush()
+    return tipo
+
+
+def delete_type(tipo_id: int, db: Session) -> None:
+    """009: borrado físico, permitido solo si el tipo NUNCA tuvo ninguna
+    `Membership` (ni activa ni histórica). Si tiene historial, la única opción
+    es desactivarlo (preserva la trazabilidad de precios/planes)."""
+    repo = MembershipTypeRepository(db)
+    tipo = repo.get_by_id(tipo_id)
+    if tipo is None:
+        raise MembershipTypeNoEncontradoError()
+    if repo.count_any_memberships_by_type(tipo_id) > 0:
+        raise MembershipTypeConHistorialError()
+    repo.delete(tipo)
+
+
+def get_type_names_by_user_ids(user_ids: list[int], db: Session) -> dict[int, str]:
+    """010: para cada usuario, el nombre del tipo de su Membership más reciente,
+    en lote (evita N+1 al enriquecer el reporte de asistencias). Punto de
+    entrada del módulo dueño de `membresias`/`tipos_membresia` para que
+    `reports` no cruce esas tablas directamente (regla de módulos). Decisión:
+    se reporta el plan MÁS RECIENTE del socio, no el vigente en la fecha exacta
+    de cada asistencia (snapshot pragmático; ver plan.md de 010)."""
+    repo = MembershipRepository(db)
+    latest = repo.list_latest_by_user_ids(user_ids)
+    type_repo = MembershipTypeRepository(db)
+    nombres = type_repo.get_names_by_ids([m.tipo_id for m in latest.values()])
+    return {
+        user_id: nombres.get(m.tipo_id, "")
+        for user_id, m in latest.items()
+    }
 
 
 def create_membership(

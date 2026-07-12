@@ -4,8 +4,10 @@ import { MemberAuthProvider } from './context/MemberAuthContext';
 
 import CheckinKiosk from './components/CheckinKiosk';
 import Home from './components/Home';
+import AttendanceReportPage from './components/backoffice/AttendanceReportPage';
 import DispositivosBloqueados from './components/backoffice/DispositivosBloqueados';
 import LoginForm from './components/backoffice/LoginForm';
+import MembershipTypesPage from './components/backoffice/MembershipTypesPage';
 import PermissionsPage from './components/backoffice/PermissionsPage';
 import ProtectedRoute from './components/backoffice/ProtectedRoute';
 import StaffHome from './components/backoffice/StaffHome';
@@ -26,6 +28,8 @@ function App() {
         <Route element={<StaffLayout />}>
           <Route path="/staff/home" element={<StaffHome />} />
           <Route path="/staff/usuarios" element={<UsersPage />} />
+          <Route path="/staff/tipos-membresia" element={<MembershipTypesPage />} />
+          <Route path="/staff/reportes" element={<AttendanceReportPage />} />
           <Route path="/staff/permisos" element={<PermissionsPage />} />
           <Route path="/staff/dispositivos-bloqueados" element={<DispositivosBloqueados />} />
         </Route>

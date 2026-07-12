@@ -37,5 +37,5 @@
 
 ## Cierre
 - [x] Validar contra los criterios de aceptación de `spec.md`.
-- [ ] **Pendiente de confirmación del usuario:** verificación visual en navegador real (no hay herramienta de browser automation disponible en este entorno) — backend verificado con tests + `curl` real end-to-end; frontend verificado con `oxlint`/`tsc` + smoke test de API vía proxy, pero no visualmente.
-- [ ] Mover la feature a "Hecho" en `../../constitution/roadmap.md` (dejar para después de la confirmación visual de arriba).
+- [x] **Confirmado por el usuario:** verificación visual en navegador real (Track 1, 2026-07-12).
+- [x] Mover la feature a "Hecho" en `../../constitution/roadmap.md`.

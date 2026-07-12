@@ -1,6 +1,6 @@
 # 004 · Gestión de usuarios y membresías
 
-**Estado:** propuesta
+**Estado:** implementada
 
 **Traza:** HU-07 · RN-07, RN-12 · RF-10, RF-09 · depende de `003-autenticacion-segura`
 

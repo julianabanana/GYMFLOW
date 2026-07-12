@@ -40,6 +40,24 @@ class CheckinRepository:
         self.db.flush()
         return checkin
 
+    def list_attendances_in_range(self, fecha_inicio: date, fecha_fin: date) -> list[CheckIn]:
+        """010 (RF-12): asistencias en el rango [fecha_inicio, fecha_fin] (días
+        calendario del gimnasio, ambos inclusive). Solo filas `is_active=true`
+        —la "unidad de conteo es día de asistencia", así los reingresos del
+        mismo día (`is_active=false`) no inflan el reporte (ver spec.md de 010).
+        Ordenado por `fecha_hora` ascendente. Consulta sobre la tabla propia."""
+        dia_gimnasio = func.date(func.timezone(settings.timezone, CheckIn.fecha_hora))
+        return (
+            self.db.query(CheckIn)
+            .filter(
+                CheckIn.is_active.is_(True),
+                dia_gimnasio >= fecha_inicio,
+                dia_gimnasio <= fecha_fin,
+            )
+            .order_by(CheckIn.fecha_hora.asc(), CheckIn.id.asc())
+            .all()
+        )
+
 
 class CheckinDeviceLockRepository:
     """RN-03 (002-acceso-denegado): contador de intentos fallidos por

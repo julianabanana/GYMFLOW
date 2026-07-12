@@ -7,7 +7,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class MembershipSummary(BaseModel):
@@ -44,3 +44,37 @@ class MembershipTypeOut(BaseModel):
     duracion_dias: int
 
     model_config = {"from_attributes": True}
+
+
+class MembershipTypeAdminOut(MembershipTypeOut):
+    """Lectura completa para el CRUD del Administrador (009): añade `activo`,
+    que el `GET /membresias/tipos` de empleado (solo activos) no expone."""
+
+    activo: bool
+
+
+class MembershipTypeCreate(BaseModel):
+    """Alta de un tipo de membresía (009, RF-11). Validaciones aquí, nunca a
+    mano en el router (AGENTS.md)."""
+
+    nombre: str = Field(min_length=1, max_length=100)
+    precio_base: Decimal = Field(ge=0)
+    visitas_totales: int = Field(ge=0)
+    cupo_invitados: int = Field(ge=0)
+    duracion_dias: int = Field(gt=0)
+    activo: bool = True
+
+
+class MembershipTypeUpdate(BaseModel):
+    """Edición parcial de un tipo (009). Todos los campos opcionales; solo se
+    aplican los enviados (`exclude_unset`). RN-06: editar aquí nunca recalcula
+    los saldos de `Membership` ya vendidas (son snapshot)."""
+
+    nombre: str | None = Field(default=None, min_length=1, max_length=100)
+    precio_base: Decimal | None = Field(default=None, ge=0)
+    visitas_totales: int | None = Field(default=None, ge=0)
+    cupo_invitados: int | None = Field(default=None, ge=0)
+    duracion_dias: int | None = Field(default=None, gt=0)
+    activo: bool | None = None
+
+    model_config = ConfigDict(extra="forbid")

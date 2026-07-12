@@ -70,6 +70,13 @@ def list_users(db: Session) -> list[User]:
     return MembersRepository(db).list_all()
 
 
+def get_users_by_ids(user_ids: list[int], db: Session) -> dict[int, User]:
+    """010: resuelve nombres de usuarios en lote (evita N+1 al enriquecer el
+    reporte de asistencias). Punto de entrada del módulo dueño de `usuarios`
+    para que `reports` no consulte esa tabla directamente (regla de módulos)."""
+    return {u.id: u for u in MembersRepository(db).list_by_ids(user_ids)}
+
+
 def _validar_unicidad(
     db: Session, cedula: str, email: str | None, excluir_id: int | None = None
 ) -> None:
