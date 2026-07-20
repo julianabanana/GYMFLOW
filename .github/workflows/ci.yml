@@ -99,7 +99,7 @@ jobs:
           fi
 
       - name: Verificar que el frontend responde
-        run: curl -sf http://localhost:5173/ > /dev/null
+        run: docker compose exec -T frontend wget -q -O /dev/null http://localhost/
 
       - name: Logs (si algo falló arriba, quedan visibles antes de terminar)
         if: always()
